@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Patch>
+
+  <!-- Biomes_Arid.xml -->
+
+  <Operation Class="PatchOperationReplace">
+    <xpath>/ThingDefinitions/ThingDef[defName = "Fire"]/graphicData/graphicClass</xpath>
+    <value>
+      <graphicClass>NoFirewatcher.Graphic_Flicker</graphicClass>
+    </value>
+  </Operation>
+
+</Patch>
