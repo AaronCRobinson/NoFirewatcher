@@ -1,15 +1,11 @@
 ﻿using Harmony;
 using RimWorld;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using UnityEngine;
 using Verse;
-using Verse.AI;
 using System.Reflection.Emit;
 using Verse.Sound;
-using System.Diagnostics;
 
 namespace NoFirewatcher
 {
@@ -19,14 +15,18 @@ namespace NoFirewatcher
 
         static HarmonyPatches()
         {
-            HarmonyInstance.DEBUG = true;
-            HarmonyInstance harmony = HarmonyInstance.Create("rimworld.why_is_that.NoFirewatcher.main");
+            //HarmonyInstance.DEBUG = true;
+            HarmonyInstance harmony = HarmonyInstance.Create("rimworld.whyisthat.nofirewatcher.main");
 
             harmony.Patch(AccessTools.Method(typeof(WeatherDecider), "CurrentWeatherCommonality"), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(RemoveLargeFireDangerPresentCheckTranspiler)));
             harmony.Patch(AccessTools.Method(typeof(WeatherDecider), nameof(WeatherDecider.WeatherDeciderTick)), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(RemoveLargeFireDangerPresentCheckTranspiler)));
 
             harmony.Patch(AccessTools.Method(typeof(TickManager), nameof(TickManager.DoSingleTick)), new HarmonyMethod(typeof(HarmonyPatches), nameof(TickManagerPrefix)), null);
             harmony.Patch(AccessTools.Method(typeof(Fire), nameof(Fire.Tick)), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(FireTickTranspiler)));
+
+            //harmony.Patch(AccessTools.Method(typeof(Fire), "TrySpread"), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(TrySpread_ManualRadialPatternRangeFix)));
+
+            //harmony.Patch(AccessTools.Property(typeof(Thing), nameof(Thing.FlammableNow)).GetGetMethod(), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(FlammableNow_FireBulwarkFix)));
 
             // TO BE REMOVED
             //harmony.Patch(AccessTools.Method(typeof(Game), nameof(Game.UpdatePlay)), new HarmonyMethod(typeof(HarmonyPatches), nameof(StartWatch)), new HarmonyMethod(typeof(HarmonyPatches), nameof(StopWatch)));
@@ -87,6 +87,7 @@ namespace NoFirewatcher
             // consider traverse?
             List<CodeInstruction> instructionList = instructions.ToList<CodeInstruction>();
             
+            // if structure => turns on HighPerformanceFire fixes when LargeFireDangerPresent
             yield return new CodeInstruction(OpCodes.Ldarg_0); //this
             yield return new CodeInstruction(OpCodes.Call, AccessTools.Property(typeof(Thing), nameof(Thing.Map)).GetGetMethod());
             yield return new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(Map), nameof(Map.fireWatcher)));
@@ -105,9 +106,8 @@ namespace NoFirewatcher
             yield return new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(Fire), "sustainer"));
             yield return new CodeInstruction(OpCodes.Callvirt, AccessTools.Method(typeof(Sustainer), nameof(Sustainer.Maintain)));
 
+            // this begins arguments for call to highPerformanceFireTick
             yield return new CodeInstruction(OpCodes.Ldarg_0){ labels = new List<Label>() { jump } }; //this
-            //yield return new CodeInstruction(OpCodes.Dup);
-            //yield return new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(Fire), "sustainer"));
             yield return new CodeInstruction(OpCodes.Dup); // this
             yield return new CodeInstruction(OpCodes.Ldflda, ticksUntilSmokeFieldInfo);
 
@@ -129,5 +129,42 @@ namespace NoFirewatcher
             int i;
             for (i = 0; i < instructionList.Count; i++) yield return instructionList[i];
         }
+
+        // NOTE: this is not performance but including here anyways.
+        //private static MethodInfo fireBulwarkMethodInfo = AccessTools.Property(typeof(Thing), nameof(Thing.FireBulwark)).GetGetMethod();
+        /*public static IEnumerable<CodeInstruction> FlammableNow_FireBulwarkFix(IEnumerable<CodeInstruction> instructions)
+        {
+            List <CodeInstruction> instructionList = instructions.ToList<CodeInstruction>();
+            int i;
+            Label l = new Label();
+            for (i = 0; i < instructionList.Count - 1; i++)
+            {
+                if (instructionList[i+1].opcode == OpCodes.Callvirt && instructionList[i+1].operand == fireBulwarkMethodInfo)
+                {
+                    l = (Label)instructionList[i + 2].operand;
+                    i += 3;
+                    break;
+                }
+                yield return instructionList[i];
+            }
+            for (; i < instructionList.Count; i++)
+            {
+                if (instructionList[i].labels.Contains(l)) instructionList[i].labels.Remove(l);
+                yield return instructionList[i]; // finish instructions
+            }
+        }*/
+
+
+        //System.TypeInitializationException: An exception was thrown by the type initializer for NoFirewatcher.HarmonyPatches ---> System.InvalidCastException: Cannot cast from source type to destination type.
+        /*public static IEnumerable<CodeInstruction> TrySpread_ManualRadialPatternRangeFix(IEnumerable<CodeInstruction> instructions)
+        {
+            foreach (CodeInstruction instruction in instructions)
+            {
+                if (instruction.opcode == OpCodes.Ldc_I4_S && (int)instruction.operand == 10) instruction.operand = 9;
+                yield return instruction;
+            }
+        }*/
+
     }
+
 }

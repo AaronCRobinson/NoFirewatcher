@@ -9,7 +9,7 @@ using Verse.Sound;
 
 namespace NoFirewatcher
 {
-    static class HighPerformanceFire
+    public static class HighPerformanceFire
     {
         // RimWorld.Fire (copypasta)
         private static List<Thing> flammableList = new List<Thing>();
@@ -26,14 +26,13 @@ namespace NoFirewatcher
         private const float SnowClearRadiusPerFireSize = 3f;
         private const float FireBaseGrowthPerTick = 0.00055f;
 
-        private static readonly IntRange SmokeIntervalRange = new IntRange(130, 200);
-
-        //public static void Tick(Fire f, Sustainer sustainer, ref int ticksSinceSpawn, ref int ticksSinceSpread)
+        // NOTE: ticksUntilSmoke is only being used for fire glow now
         public static void Tick(Fire f, ref int ticksUntilSmoke, ref int ticksSinceSpawn, ref int ticksSinceSpread)
         {
             Map map = f.Map;
 
-            ticksUntilSmoke--; // smoke only applies to orphans
+            // NOTE: in here for testing...
+            if (!f.Spawned) Log.Error("fire not spawned!");
 
             if (f.fireSize > 1f)
             {
@@ -46,55 +45,68 @@ namespace NoFirewatcher
                 }
             }
 
-            if (Gen.IsHashIntervalTick(f, ComplexCalcsInterval))
+            if (f.IsHashIntervalTick(ComplexCalcsInterval))
             {
                 if (f.parent == null)
                 {
                     f.DoComplexOrphanCalcs();
+
+                    // NOTE: moved here to avoid extra check on parent
+                    //private void SpawnSmokeParticles()
+                    ticksUntilSmoke--;
                     if (ticksUntilSmoke <= 0)
                     {
                         // RimWorld.Fire.SpawnSmokeParticles()
-                        if (f.fireSize > 0.5f)
+                        if (f.fireSize > 0.5f) MoteMaker.ThrowFireGlow(f.Position, map, f.fireSize);
+
+                        float num = 1f - f.fireSize / 2f;
+                        if (num < 0 ) num = 0;
+
+                        ticksUntilSmoke = SmokeIntervalRangeLerp(num); // + (int)(10f * Rand.Value);
+                    }
+
+                    // NOTE: only applies if parent not null so being moved here.
+                    ticksSinceSpawn++;
+                    if (ticksSinceSpawn >= TicksToBurnFloor)
+                    {
+                        // RimWorld.Fire.TryMakeFloorBurned()
+                        TerrainDef burnedDef = f.Position.GetTerrain(map)?.burnedDef;
+
+                        if (burnedDef != null && f.Position.TerrainFlammable(map))
                         {
-                            MoteMaker.ThrowFireGlow(f.Position, map, f.fireSize);
+                            TerrainGrid terrainGrid = map.terrainGrid;
+                            terrainGrid.RemoveTopLayer(f.Position, false);
+                            terrainGrid.SetTerrain(f.Position, burnedDef);
                         }
-                        float num = f.fireSize / 2f;
-                        if (num > 1f)
-                        {
-                            num = 1f;
-                        }
-                        num = 1f - num;
-                        ticksUntilSmoke = SmokeIntervalRange.Lerped(num) + (int)(10f * Rand.Value);
                     }
                 }     
                 else
                 {
                     f.DoComplexParentedCalcs();
-                }
-                    
+                }     
             }
+        }
 
-                ticksSinceSpawn++;
-            if (ticksSinceSpawn >= TicksToBurnFloor)
-            {
-                // RimWorld.Fire.TryMakeFloorBurned()
-                if (f.parent != null || !f.Spawned) return;
+        // NOTE: cutting out FireBulwark checks of TerrainFlammableNow
+        private static bool TerrainFlammable(this IntVec3 c, Map map)
+        {
+            TerrainDef terrain = c.GetTerrain(map);
+            if (!terrain.Flammable()) return false;
+            return true;
+        }
 
-                TerrainDef burnedDef = f.Position.GetTerrain(map)?.burnedDef;
-
-                if (burnedDef != null && f.Position.TerrainFlammableNow(map))
-                {
-                    TerrainGrid terrainGrid = map.terrainGrid;
-                    terrainGrid.RemoveTopLayer(f.Position, false);
-                    terrainGrid.SetTerrain(f.Position, burnedDef);
-                }
-            }
+        //private static readonly IntRange SmokeIntervalRange = new IntRange(130, 200);
+        private const int lerpMin = 130;
+        private const float lerpDiff = 70f; // max - min
+        private static int SmokeIntervalRangeLerp(float lerpFactor)
+        {
+            // return this.min + Mathf.RoundToInt(lerpFactor * (float)(this.max - this.min)); 
+            return lerpMin + Mathf.RoundToInt(lerpFactor * lerpDiff);
         }
 
         // RimWorld.Fire.TrySpread()
         private static void TrySpread(this Fire f)
         {
-            // consider using args?
             IntVec3 originalPos = f.Position;
             Map map = f.Map;
 
@@ -112,12 +124,14 @@ namespace NoFirewatcher
                 flag = false;
             }
 
-            if (!intVec.InBounds(map) || !GenSight.LineOfSight(originalPos, intVec, map, CellRect.SingleCell(originalPos), CellRect.SingleCell(intVec))) return;
+            if (!intVec.InBounds(map)) return;
 
             if (Rand.Chance(FireUtility.ChanceToStartFireIn(intVec, map)))
             {
                 if (!flag)
                 {
+                    if (!GenSight.LineOfSight(originalPos, intVec, map, CellRect.SingleCell(originalPos), CellRect.SingleCell(intVec))) return;
+
                     Spark spark = (Spark)GenSpawn.Spawn(ThingDefOf.Spark, originalPos, map);
                     spark.Launch(f, intVec, null);
                 }
@@ -131,10 +145,9 @@ namespace NoFirewatcher
         private static void DoComplexParentedCalcs(this Fire f)
         {
             flammabilityMax = 0f;
-            Map map = f.Map;
 
             //TerrainDef terrainDef td = f.Position.GetTerrain(f.Map);
-            if (!f.Position.GetTerrain(map).HasTag("Water"))
+            if (!f.Position.GetTerrain(f.Map).HasTag("Water"))
             {
                 flammabilityMax = f.parent.GetStatValue(StatDefOf.Flammability, true);
             }
@@ -150,38 +163,39 @@ namespace NoFirewatcher
             if (f.Spawned)
             {
                 // heat
-                float num = f.fireSize * HeatPerFireSizePerInterval;
-                GenTemperature.PushHeat(f.Position, map, num);
+                //float num = f.fireSize * HeatPerFireSizePerInterval;
+                GenTemperature.PushHeat(f.Position, f.Map, f.fireSize * HeatPerFireSizePerInterval);
 
-                if (Rand.Value < 0.4f)
-                {
-                    float radius = f.fireSize * SnowClearRadiusPerFireSize;
-                    SnowUtility.AddSnowRadial(f.Position, map, radius, -(f.fireSize * 0.1f));
-                }
-                f.fireSize += FireBaseGrowthPerTick * flammabilityMax * 150f;
+                f.DoFireGrowthCalcs();
 
-                if (f.fireSize > MaxFireSize)
-                    f.fireSize = MaxFireSize;
-
-                if ((double)map.weatherManager.RainRate <= 0.01f || !f.VulnerableToRain()) // || (double)Rand.Value >= 6.0)
+                if ((double)f.Map.weatherManager.RainRate <= 0.01f || !f.VulnerableToRain())
                     return;
 
-                //f.TakeDamage(new DamageInfo(DamageDefOf.Extinguish, 10, -1f, null, null, null, DamageInfo.SourceCategory.ThingOrUnknown));
-
-                // Verse.Thing.public void TakeDamage(DamageInfo dinfo)
-
-                // Verse.DamageWorker.Apply(DamageInfo dinfo, Thing victim) -- ALL THAT's LEFT MUAWHAHAHAHA
-                if (Rand.Value > 0.9f)
-                {
-                    ImpactSoundUtility.PlayImpactSound(f, DamageDefOf.Extinguish.impactSoundType, map);
-                }
-
-                f.fireSize -= 0.1f * map.weatherManager.RainRate; // FEATURE: uses rainrate when extinguishing fire
-                if (f.fireSize <= MinFireSize)
-                {
-                    f.Destroy(DestroyMode.Vanish);
-                }
+                f.DoRainDamageCalcs();
             }
+        }
+
+        private static void DoFireGrowthCalcs(this Fire f)
+        {
+            if (Rand.Value < 0.1f) // if (Rand.Value < 0.4f)
+            {
+                float radius = f.fireSize * SnowClearRadiusPerFireSize;
+                SnowUtility.AddSnowRadial(f.Position, f.Map, radius, -(f.fireSize * 0.1f));
+            }
+            f.fireSize += FireBaseGrowthPerTick * flammabilityMax * 150f;
+
+            if (f.fireSize > MaxFireSize) f.fireSize = MaxFireSize;
+        }
+
+        private static void DoRainDamageCalcs(this Fire f)
+        {
+            // Verse.Thing.public void TakeDamage(DamageInfo dinfo)
+            // Verse.DamageWorker.Apply(DamageInfo dinfo, Thing victim) -- ALL THAT's LEFT MUAWHAHAHAHA
+            if (Rand.Value > 0.9f) ImpactSoundUtility.PlayImpactSound(f, DamageDefOf.Extinguish.impactSoundType, f.Map);
+
+            //public override void PostApplyDamage(DamageInfo dinfo, float totalDamageDealt)
+            f.fireSize -= 0.1f * f.Map.weatherManager.RainRate; // FEATURE: uses rainrate when extinguishing fire
+            if (f.fireSize <= MinFireSize) f.Destroy(DestroyMode.Vanish);
         }
 
         private static void DoComplexOrphanCalcs(this Fire f)
@@ -195,7 +209,7 @@ namespace NoFirewatcher
             //TerrainDef terrainDef td = f.Position.GetTerrain(f.Map);
             if (!f.Position.GetTerrain(map).HasTag("Water"))
             {
-                if (f.Position.TerrainFlammableNow(map))
+                if (f.Position.TerrainFlammable(map))
                 {
                     flammabilityMax = f.Position.GetTerrain(map).GetStatValueAbstract(StatDefOf.Flammability, null);
                 }
@@ -247,35 +261,12 @@ namespace NoFirewatcher
                 if (doorPresent) num *= HeatFactorWhenDoorPresent;
                 GenTemperature.PushHeat(f.Position, map, num);
 
-                if (Rand.Value < 0.4f)
-                {
-                    float radius = f.fireSize * SnowClearRadiusPerFireSize;
-                    SnowUtility.AddSnowRadial(f.Position, map, radius, -(f.fireSize * 0.1f));
-                }
-                f.fireSize += FireBaseGrowthPerTick * flammabilityMax * 150f;
+                f.DoFireGrowthCalcs();
 
-                if (f.fireSize > MaxFireSize)
-                    f.fireSize = MaxFireSize;
-
-                if ((double)map.weatherManager.RainRate <= 0.01f || !f.VulnerableToRain()) // || (double)Rand.Value >= 6.0)
+                if ((double)f.Map.weatherManager.RainRate <= 0.01f || !f.VulnerableToRain())
                     return;
 
-                // NOTE: COPY PASTA
-                //f.TakeDamage(new DamageInfo(DamageDefOf.Extinguish, 10, -1f, null, null, null, DamageInfo.SourceCategory.ThingOrUnknown));
-
-                // Verse.Thing.public void TakeDamage(DamageInfo dinfo)
-
-                // Verse.DamageWorker.Apply(DamageInfo dinfo, Thing victim) -- ALL THAT's LEFT MUAWHAHAHAHA
-                if (Rand.Value > 0.9f)
-                {
-                    ImpactSoundUtility.PlayImpactSound(f, DamageDefOf.Extinguish.impactSoundType, map);
-                }
-
-                f.fireSize -= 0.1f * map.weatherManager.RainRate; // FEATURE: uses rainrate when extinguishing fire
-                if (f.fireSize <= MinFireSize)
-                {
-                    f.Destroy(DestroyMode.Vanish);
-                }
+                f.DoRainDamageCalcs();
             }
         }
 
@@ -286,15 +277,14 @@ namespace NoFirewatcher
             int num2 = GenMath.RoundRandom(num * 150f); // TODO: fix this
             if (num2 < 1) num2 = 1;
 
-            Pawn pawn = targ as Pawn;
-            if (pawn != null)
+            if (targ is Pawn)
             {
+                Pawn pawn = targ as Pawn;
                 DamageInfo dinfo = new DamageInfo(DamageDefOf.Flame, num2, -1f, f, null, null, DamageInfo.SourceCategory.ThingOrUnknown);
                 dinfo.SetBodyRegion(BodyPartHeight.Undefined, BodyPartDepth.Outside);
                 targ.TakeDamage(dinfo);
 
-                Apparel apparel;
-                if (pawn.apparel != null && pawn.apparel.WornApparel.TryRandomElement(out apparel))
+                if (pawn.apparel != null && pawn.apparel.WornApparel.TryRandomElement(out var apparel))
                 {
                     apparel.TakeDamageFast(num2);
                 }
@@ -305,7 +295,7 @@ namespace NoFirewatcher
             }
         }
 
-        public static void TakeDamageFast(this Thing targ, int num2)
+        private static void TakeDamageFast(this Thing targ, int num2)
         {
             // RISK: skipping "is destroyed" check. 
             // NOTE: ignoring damageMultipliers
@@ -324,8 +314,7 @@ namespace NoFirewatcher
         // RimWorld.Fire.VulnerableToRain()
         private static bool VulnerableToRain(this Fire f)
         {
-            if (!f.Spawned) return false; //TODO: is this needed ?
-
+            // RISK: skipping "is spawned" check.
             RoofDef roofDef = f.Map.roofGrid.RoofAt(f.Position);
             if (roofDef == null) return true;
             if (roofDef.isThickRoof) return false;
@@ -335,33 +324,16 @@ namespace NoFirewatcher
         }
     }
 
+    // NOTE: look into working with this better, especially switching out the custom dynamically...
     // custom graphic flicker to help with performance.
-    public class Graphic_Flicker : Graphic_Collection
+    public class Graphic_Flicker : Verse.Graphic_Flicker
     {
-        private const int BaseTicksPerFrameChange = 120;
-        private const int ExtraTicksPerFrameChange = 10; // What is this doing?
-        private const float MaxOffset = 0.05f;
-
-        public override Material MatSingle
-        {
-            get
-            {
-                return this.subGraphics[Rand.Range(0, this.subGraphics.Length)].MatSingle;
-            }
-        }
+        private const int BaseTicksPerFrameChange = 60;
+        //private const float MaxOffset = 0.05f;
 
         public override void DrawWorker(Vector3 loc, Rot4 rot, ThingDef thingDef, Thing thing)
         {
-            if (thingDef == null)
-            {
-                Log.ErrorOnce("Fire DrawWorker with null thingDef: " + loc, 3427324);
-                return;
-            }
-            if (this.subGraphics == null)
-            {
-                Log.ErrorOnce("Graphic_Flicker has no subgraphics " + thingDef, 358773632);
-                return;
-            }
+            // Skip some error checking.
             int num = Find.TickManager.TicksGame;
             int num2 = 0;
             int num3 = 0;
@@ -373,28 +345,24 @@ namespace NoFirewatcher
                 num += Mathf.Abs(thing.thingIDNumber ^ 8453458);
                 num2 = num / BaseTicksPerFrameChange;
                 num3 = Mathf.Abs(num2 ^ thing.thingIDNumber * 391) % this.subGraphics.Length;
-                Fire fire = thing as Fire;
-                if (fire != null)
+                if (thing is Fire)
                 {
-                    num4 = fire.fireSize;
+                    num4 = (thing as Fire).fireSize;
                 }
                 else if (compFireOverlay != null)
                 {
+                    Log.ErrorOnce("compFireOverlay != null (1)", 6612326);
                     num4 = compFireOverlay.Props.fireSize;
                 }
             }
-            if (num3 < 0 || num3 >= this.subGraphics.Length)
-            {
-                Log.ErrorOnce("Fire drawing out of range: " + num3, 7453435);
-                num3 = 0;
-            }
             Graphic graphic = this.subGraphics[num3];
             float num5 = Mathf.Min(num4 / 1.2f, 1.2f);
-            Vector3 a = GenRadial.RadialPattern[num2 % GenRadial.RadialPattern.Length].ToVector3() / GenRadial.MaxRadialPatternRadius;
-            a *= MaxOffset;
-            Vector3 vector = loc + a * num4;
+            //Vector3 a = GenRadial.RadialPattern[num2 % GenRadial.RadialPattern.Length].ToVector3() / GenRadial.MaxRadialPatternRadius;
+            //a *= MaxOffset;
+            Vector3 vector = loc; // + a * num4;
             if (compFireOverlay != null)
             {
+                Log.ErrorOnce("compFireOverlay != null (2)", 6612326);
                 vector += compFireOverlay.Props.offset;
             }
             Vector3 s = new Vector3(num5, 1f, num5);
@@ -402,17 +370,6 @@ namespace NoFirewatcher
             matrix.SetTRS(vector, Quaternion.identity, s);
             Graphics.DrawMesh(MeshPool.plane10, matrix, graphic.MatSingle, 0);
         }
-
-        public override string ToString()
-        {
-            return string.Concat(new object[]
-            {
-                "Flicker(subGraphic[0]=",
-                this.subGraphics[0].ToString(),
-                ", count=",
-                this.subGraphics.Length,
-                ")"
-            });
-        }
     }
+
 }
