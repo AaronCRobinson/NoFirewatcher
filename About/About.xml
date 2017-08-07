@@ -1,9 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-	<name></name>
+	<name>No Firewatcher</name>
 	<author>Why_is_that</author>
 	<url></url>
 	<targetVersion>0.17.0</targetVersion>
-	<description>
-	</description>
+	<description>Remove firewatcher and improves fire performance.</description>
 </ModMetaData>
