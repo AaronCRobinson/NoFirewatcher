@@ -34,10 +34,14 @@ namespace NoFirewatcher
 
             harmony.Patch(AccessTools.Method(typeof(Fire), "TrySpread"), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(TrySpread_ManualRadialPatternRangeFix)));
 
+            harmony.Patch(AccessTools.Method(typeof(FireWatcher), nameof(FireWatcher.FireWatcherTick)), new HarmonyMethod(typeof(HarmonyPatches), nameof(DisableFireWatcherTick)), null);
 #if DEBUG
             harmony.Patch(AccessTools.Method(typeof(Game), nameof(Game.UpdatePlay)), new HarmonyMethod(typeof(HarmonyPatches), nameof(StartWatch)), new HarmonyMethod(typeof(HarmonyPatches), nameof(StopWatch)));
 #endif
         }
+
+        // NOTE: consider transpiling this out inside.
+        public static bool DisableFireWatcherTick() { return false; }
 
         public static IEnumerable<CodeInstruction> RemoveLargeFireDangerPresentCheckTranspiler(IEnumerable<CodeInstruction> instructions)
         {
