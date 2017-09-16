@@ -1,24 +1,29 @@
-﻿using Harmony;
-using RimWorld;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Verse;
 using System.Reflection.Emit;
+using Verse;
 using Verse.Sound;
+using RimWorld;
+using Harmony;
 
 namespace NoFirewatcher
 {
     [StaticConstructorOnStartup]
     class HarmonyPatches
     {
+        private static FieldInfo FI_ManualRadialPattern = AccessTools.Field(typeof(GenRadial), nameof(GenRadial.ManualRadialPattern));
+        private static FieldInfo ticksUntilSmokeFieldInfo = AccessTools.Field(typeof(Fire), "ticksUntilSmoke");
+        private static FieldInfo ticksSinceSpawnFieldInfo = AccessTools.Field(typeof(Fire), "ticksSinceSpawn");
+        private static FieldInfo ticksSinceSpreadFieldInfo = AccessTools.Field(typeof(Fire), "ticksSinceSpread");
+        private static MethodInfo highPerformanceFireTickMethodInfo = AccessTools.Method(typeof(HighPerformanceFire), nameof(HighPerformanceFire.Tick));
 
         static HarmonyPatches()
         {
 #if DEBUG
             HarmonyInstance.DEBUG = true;
 #endif
-
             HarmonyInstance harmony = HarmonyInstance.Create("rimworld.whyisthat.nofirewatcher.main");
 
             harmony.Patch(AccessTools.Method(typeof(WeatherDecider), "CurrentWeatherCommonality"), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(RemoveLargeFireDangerPresentCheckTranspiler)));
@@ -56,34 +61,17 @@ namespace NoFirewatcher
             for (i = 0; i < instructionList.Count; i++) yield return instructionList[i];
         }
 
-        // NOTE: this is not being used right now.
-        //TickManager.DoSingleTick => handle counting fires
+        private static FieldInfo FI_fireCount = AccessTools.Field(typeof(Fire), "fireCount");
+
         public static void TickManagerPrefix()
         {
-            Traverse t = Traverse.Create(typeof(Fire));
             //Fire.fireCount = base.Map.listerThings.ThingsOfDef(ThingDefOf.Fire).Count;
-            t.Property("fireCount").SetValue(Find.VisibleMap.listerThings.ThingsOfDef(ThingDefOf.Fire).Count);
+            HighPerformanceFire.fireCount = Find.VisibleMap.listerThings.ThingsOfDef(ThingDefOf.Fire).Count;
+            FI_fireCount.SetValue(null, HighPerformanceFire.fireCount);
         }
-
-        private static FieldInfo ticksUntilSmokeFieldInfo = AccessTools.Field(typeof(Fire), "ticksUntilSmoke");
-        private static FieldInfo ticksSinceSpawnFieldInfo = AccessTools.Field(typeof(Fire), "ticksSinceSpawn");
-        private static FieldInfo ticksSinceSpreadFieldInfo = AccessTools.Field(typeof(Fire), "ticksSinceSpread");
-        private static MethodInfo highPerformanceFireTickMethodInfo = AccessTools.Method(typeof(HighPerformanceFire), nameof(HighPerformanceFire.Tick));
 
         public static IEnumerable<CodeInstruction> FireTickTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
-            // consider traverse?
-            List<CodeInstruction> instructionList = instructions.ToList<CodeInstruction>();
-
-            // if structure => turns on HighPerformanceFire fixes when LargeFireDangerPresent
-            yield return new CodeInstruction(OpCodes.Ldarg_0); //this
-            yield return new CodeInstruction(OpCodes.Call, AccessTools.Property(typeof(Thing), nameof(Thing.Map)).GetGetMethod());
-            yield return new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(Map), nameof(Map.fireWatcher)));
-            yield return new CodeInstruction(OpCodes.Callvirt, AccessTools.Property(typeof(FireWatcher), nameof(FireWatcher.LargeFireDangerPresent)).GetGetMethod());
-
-            Label elseLabel = il.DefineLabel();
-            yield return new CodeInstruction(OpCodes.Brfalse, elseLabel); // branch
-
             // NOTE: having issues passing sustainer
             yield return new CodeInstruction(OpCodes.Ldarg_0); //this
             yield return new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(Fire), "sustainer"));
@@ -107,18 +95,9 @@ namespace NoFirewatcher
 
             yield return new CodeInstruction(OpCodes.Call, highPerformanceFireTickMethodInfo);
 
-            Label returnLabel = il.DefineLabel();
-            yield return new CodeInstruction(OpCodes.Br, returnLabel);
-
-            // handle labels
-            instructionList[0].labels.Add(elseLabel); // else
-            instructionList[instructionList.Count - 1].labels.Add(returnLabel); // end if
-
-            int i;
-            for (i = 0; i < instructionList.Count; i++) yield return instructionList[i];
+            yield return new CodeInstruction(OpCodes.Ret);
         }
       
-        private static FieldInfo FI_ManualRadialPattern = AccessTools.Field(typeof(GenRadial), nameof(GenRadial.ManualRadialPattern));
         public static IEnumerable<CodeInstruction> TrySpread_ManualRadialPatternRangeFix(IEnumerable<CodeInstruction> instructions)
         {
             List<CodeInstruction> instructionList = instructions.ToList<CodeInstruction>();
