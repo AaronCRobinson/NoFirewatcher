@@ -73,26 +73,30 @@ namespace NoFirewatcher
                         ticksUntilSmoke = SmokeIntervalRangeLerp(num);
                     }
 
-                    // NOTE: only applies if parent not null so being moved here.
-                    ticksSinceSpawn++;
-                    if (ticksSinceSpawn >= TicksToBurnFloor)
-                    {
-                        // RimWorld.Fire.TryMakeFloorBurned()
-                        curTerrain = f.Position.GetTerrain(map);
-                        TerrainDef burnedDef = curTerrain?.burnedDef;
-
-                        if (burnedDef != null && curTerrain.Flammable())
-                        {
-                            TerrainGrid terrainGrid = map.terrainGrid;
-                            terrainGrid.RemoveTopLayer(f.Position, false);
-                            terrainGrid.SetTerrain(f.Position, burnedDef);
-                        }
-                    }
                 }     
                 else
                 {
                     f.DoComplexParentedCalcs();
                 }     
+            }
+
+            // TODO: find a better way to do this.
+            if (f.parent == null)
+            {
+                ticksSinceSpawn++;
+                if(ticksSinceSpawn >= TicksToBurnFloor)
+                {
+                    // RimWorld.Fire.TryMakeFloorBurned()
+                    curTerrain = f.Position.GetTerrain(map);
+                    TerrainDef burnedDef = curTerrain?.burnedDef;
+
+                    if (burnedDef != null && curTerrain.Flammable())
+                    {
+                        TerrainGrid terrainGrid = map.terrainGrid;
+                        terrainGrid.RemoveTopLayer(f.Position, false);
+                        terrainGrid.SetTerrain(f.Position, burnedDef);
+                    }
+                }
             }
         }
 
