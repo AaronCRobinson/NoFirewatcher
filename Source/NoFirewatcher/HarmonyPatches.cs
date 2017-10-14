@@ -26,44 +26,19 @@ namespace NoFirewatcher
 #endif
             HarmonyInstance harmony = HarmonyInstance.Create("rimworld.whyisthat.nofirewatcher.main");
 
-            harmony.Patch(AccessTools.Method(typeof(WeatherDecider), "CurrentWeatherCommonality"), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(RemoveLargeFireDangerPresentCheckTranspiler)));
-            harmony.Patch(AccessTools.Method(typeof(WeatherDecider), nameof(WeatherDecider.WeatherDeciderTick)), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(RemoveLargeFireDangerPresentCheckTranspiler)));
+            harmony.Patch(AccessTools.Method(typeof(FireWatcher), nameof(FireWatcher.LargeFireDangerPresent)), new HarmonyMethod(typeof(HarmonyPatches), nameof(DoNothingDetour)), null);
+            harmony.Patch(AccessTools.Method(typeof(FireWatcher), nameof(FireWatcher.FireWatcherTick)), new HarmonyMethod(typeof(HarmonyPatches), nameof(DoNothingDetour)), null);
 
             harmony.Patch(AccessTools.Method(typeof(TickManager), nameof(TickManager.DoSingleTick)), new HarmonyMethod(typeof(HarmonyPatches), nameof(TickManagerPrefix)), null);
             harmony.Patch(AccessTools.Method(typeof(Fire), nameof(Fire.Tick)), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(FireTickTranspiler)));
 
             harmony.Patch(AccessTools.Method(typeof(Fire), "TrySpread"), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(TrySpread_ManualRadialPatternRangeFix)));
-
-            harmony.Patch(AccessTools.Method(typeof(FireWatcher), nameof(FireWatcher.FireWatcherTick)), new HarmonyMethod(typeof(HarmonyPatches), nameof(DisableFireWatcherTick)), null);
 #if DEBUG
             harmony.Patch(AccessTools.Method(typeof(Game), nameof(Game.UpdatePlay)), new HarmonyMethod(typeof(HarmonyPatches), nameof(StartWatch)), new HarmonyMethod(typeof(HarmonyPatches), nameof(StopWatch)));
 #endif
         }
 
-        // NOTE: consider transpiling this out inside.
-        public static bool DisableFireWatcherTick() { return false; }
-
-        public static IEnumerable<CodeInstruction> RemoveLargeFireDangerPresentCheckTranspiler(IEnumerable<CodeInstruction> instructions)
-        {
-            MethodInfo largeFireDangerPresentMethodInfo = AccessTools.Property(typeof(FireWatcher), nameof(FireWatcher.LargeFireDangerPresent)).GetGetMethod();
-
-            List<CodeInstruction> instructionList = instructions.ToList<CodeInstruction>();
-            int i;
-            bool found = false;
-            for (i = 0; i < instructionList.Count - 1; i++)
-            {
-                if (instructionList[i].opcode == OpCodes.Callvirt && instructionList[i].operand == largeFireDangerPresentMethodInfo)
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (found) // consider being smarter here
-                instructionList.RemoveRange(i - 3, 5);
-
-            for (i = 0; i < instructionList.Count; i++) yield return instructionList[i];
-        }
+        public static bool DoNothingDetour() { return false; }
 
         private static FieldInfo FI_fireCount = AccessTools.Field(typeof(Fire), "fireCount");
 
