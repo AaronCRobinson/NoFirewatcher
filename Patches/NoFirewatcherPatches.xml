@@ -2,7 +2,7 @@
 <Patch>
 
   <Operation Class="PatchOperationReplace">
-    <xpath>/ThingDefinitions/ThingDef[defName = "Fire"]/graphicData/graphicClass</xpath>
+    <xpath>/Defs/ThingDef[defName = "Fire"]/graphicData/graphicClass</xpath>
     <value>
       <graphicClass>NoFirewatcher.Graphic_Flicker</graphicClass>
     </value>
