@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-	<name>No Firewatcher</name>
-	<author>Why_is_that</author>
-	<url></url>
-	<targetVersion>0.17.0</targetVersion>
-	<description>Remove firewatcher and improves fire performance.</description>
+    <name>No Firewatcher</name>
+    <author>Why_is_that</author>
+    <url>https://github.com/AaronCRobinson/NoFirewatcher</url>
+    <targetVersion>0.18.0</targetVersion>
+    <description>Disabled FireWatcher which changes likelihood of rain when fires get to large.</description>
 </ModMetaData>

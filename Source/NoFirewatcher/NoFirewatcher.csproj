@@ -56,15 +56,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DisableWeatherChange.cs" />
-    <Compile Include="Graphic_Flicker.cs" />
     <Compile Include="HarmonyPatches.cs" />
-    <Compile Include="HighPerformanceFire.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>xcopy /Y "$(TargetDir)*" "C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\$(ProjectName)\Assemblies\"
-xcopy /E /Y "$(SolutionDir)..\About\*" "C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\$(ProjectName)\About\"
-xcopy /E /Y "$(SolutionDir)..\Patches\*" "C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\$(ProjectName)\Patches\"</PostBuildEvent>
+xcopy /E /Y "$(SolutionDir)..\About\*" "C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\$(ProjectName)\About\"</PostBuildEvent>
   </PropertyGroup>
 </Project>

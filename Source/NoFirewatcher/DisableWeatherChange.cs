@@ -1,6 +1,6 @@
-﻿using Harmony;
-using RimWorld;
+﻿using RimWorld;
 using Verse;
+using Harmony;
 
 namespace NoFirewatcher
 {
