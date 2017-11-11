@@ -61,10 +61,20 @@ namespace NoFirewatcher
                     if (seqIdx == target.Count)
                     {
                         i -= (seqIdx - 1);
+                        // track labels
+                        List<Label> labels = new List<Label>();
+                        foreach (var instruction in instructionList.GetRange(i, seqIdx))
+                            labels.AddRange(instruction.labels);
                         instructionList.RemoveRange(i, seqIdx);
                         seqIdx = 0;
+                        // fix labels
                         if (newInstruction != null)
+                        {
+                            newInstruction.labels = labels;
                             instructionList.Insert(i, newInstruction);
+                        }
+                        else
+                            instructionList[i].labels = labels;
                     }
                 }
                 else
