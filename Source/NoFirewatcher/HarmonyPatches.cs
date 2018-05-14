@@ -22,6 +22,7 @@ namespace NoFirewatcher
             harmony.Patch(AccessTools.Method(typeof(WeatherDecider), "CurrentWeatherCommonality"), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(ReplaceLargeFireDangerPresentCalls)));
 
             harmony.Patch(AccessTools.Method(typeof(Map), nameof(Map.MapPostTick)), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(RemoveDefaultFireWatcherTick)));
+            
         }
 
         public static IEnumerable<CodeInstruction> ReplaceLargeFireDangerPresentCalls(IEnumerable<CodeInstruction> instructions)
@@ -67,6 +68,8 @@ namespace NoFirewatcher
                             labels.AddRange(instruction.labels);
                         instructionList.RemoveRange(i, seqIdx);
                         seqIdx = 0;
+                        // insert nop place holder (helps brrainz & harmony)
+                        instructionList.Insert(i++, new CodeInstruction(OpCodes.Nop));
                         // fix labels
                         if (newInstruction != null)
                         {
