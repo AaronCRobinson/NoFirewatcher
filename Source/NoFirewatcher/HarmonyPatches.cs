@@ -22,7 +22,9 @@ namespace NoFirewatcher
             harmony.Patch(AccessTools.Method(typeof(WeatherDecider), "CurrentWeatherCommonality"), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(ReplaceLargeFireDangerPresentCalls)));
 
             harmony.Patch(AccessTools.Method(typeof(Map), nameof(Map.MapPostTick)), null, null, new HarmonyMethod(typeof(HarmonyPatches), nameof(RemoveDefaultFireWatcherTick)));
-            
+#if DEBUG
+            HarmonyInstance.DEBUG = false;
+#endif
         }
 
         public static IEnumerable<CodeInstruction> ReplaceLargeFireDangerPresentCalls(IEnumerable<CodeInstruction> instructions)
@@ -35,7 +37,7 @@ namespace NoFirewatcher
             };
 
             List<CodeInstruction> instructionList = instructions.ToList();
-            return RemoveSequence(instructionList, target, new CodeInstruction(OpCodes.Ldc_I4_0));
+            return HarmonyTools.RemoveSequence(instructionList, target, new CodeInstruction(OpCodes.Ldc_I4_0));
         }
 
         public static IEnumerable<CodeInstruction> RemoveDefaultFireWatcherTick(IEnumerable<CodeInstruction> instructions)
@@ -47,46 +49,10 @@ namespace NoFirewatcher
             };
 
             List<CodeInstruction> instructionList = instructions.ToList();
-            return RemoveSequence(instructionList, target);
+            return HarmonyTools.RemoveSequence(instructionList, target);
         }
 
-        private static List<CodeInstruction> RemoveSequence(List<CodeInstruction> instructionList, List<CodeInstruction> target, CodeInstruction newInstruction = null)
-        {
-            int seqIdx = 0;
-            int i = 0;
-            while (i < instructionList.Count)
-            {
-                if (instructionList[i].opcode == target[seqIdx].opcode && instructionList[i].operand == target[seqIdx].operand)
-                {
-                    seqIdx++;
-                    if (seqIdx == target.Count)
-                    {
-                        i -= (seqIdx - 1);
-                        // track labels
-                        List<Label> labels = new List<Label>();
-                        foreach (var instruction in instructionList.GetRange(i, seqIdx))
-                            labels.AddRange(instruction.labels);
-                        instructionList.RemoveRange(i, seqIdx);
-                        seqIdx = 0;
-                        // insert nop place holder (helps brrainz & harmony)
-                        instructionList.Insert(i++, new CodeInstruction(OpCodes.Nop));
-                        // fix labels
-                        if (newInstruction != null)
-                        {
-                            newInstruction.labels = labels;
-                            instructionList.Insert(i, newInstruction);
-                        }
-                        else
-                            instructionList[i].labels = labels;
-                    }
-                }
-                else
-                    seqIdx = 0;
-                i++;
-            }
-            // NOTE: unhandle edge case here
-            return instructionList;
-        }
+
 
     }
 
