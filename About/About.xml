@@ -4,5 +4,22 @@
     <author>Why_is_that</author>
     <url>https://github.com/AaronCRobinson/NoFirewatcher</url>
     <targetVersion>1.0.0</targetVersion>
-    <description>Disabled FireWatcher which changes likelihood of rain when fires get to large.</description>
+    <description><![CDATA[[h1][b]Features:[/b][/h1]
+- Removes the firewatcher which sends rain when fires get too out of control
+- Includes performance changes to fire mechanics (makes the game run faster/smoother)
+- Rain amount now affects the amount of damage done to fire (only takes place with custom weather)
+
+[h1][b]Note:[/b][/h1]
+If using this mod there is no need to use `Improved Fire Performance`. This mod provides greater performance as the firewatcher also consumes time (and IFP does not remove the firewatcher).  However, feel free to use both -- I detect this and it will cause no errors.
+
+[h1][b]Related Fire Mods:[/b][/h1]
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=1086832792]Firestarter[/url]
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=1133660029]Improved Fire Performance[/url]
+
+[h1][b]Source:[/b][/h1]
+[url=https://github.com/AaronCRobinson/NoFirewatcher]Github[/url]
+
+[h1][b]Acknowledgements:[/b][/h1]
+Special thanks to Pardeike's amazing non-destructive patching library, Harmony.
+]]></description>
 </ModMetaData>

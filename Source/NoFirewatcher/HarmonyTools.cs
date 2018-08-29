@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Reflection.Emit;
 using Harmony;
 using Verse;
@@ -59,5 +60,31 @@ namespace NoFirewatcher
             // NOTE: unhandle edge case here
             return instructionList;
         }
+
+        // Archieved in comment for best name ever
+        //public delegate IEnumerable<CodeInstruction> Transbibilator(IEnumerable<CodeInstruction> instructions);
+        public static Func<IEnumerable<CodeInstruction>, IEnumerable<CodeInstruction>> Bigofactorunie(OpCode op, object opper, IEnumerable<CodeInstruction> newInstructions)
+        {
+#if DEBUG
+            Log.Message($"Bigofactorunie");
+#endif
+            IEnumerable<CodeInstruction> Leollswisharoo(IEnumerable<CodeInstruction> instructions)
+            {
+#if DEBUG
+                Log.Message($"Leollswisharoo");
+#endif
+                foreach (CodeInstruction instruction in instructions)
+                {
+                    if (instruction.opcode == op && instruction.operand == opper)
+                        foreach (CodeInstruction newInstruction in newInstructions)
+                            yield return newInstruction;
+                    else
+                        yield return instruction;
+                }
+            }
+            return Leollswisharoo;
+        }
+
     }
+
 }

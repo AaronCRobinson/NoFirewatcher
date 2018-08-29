@@ -12,7 +12,7 @@ namespace NoFirewatcher
         static DisableWeatherChange()
         {
             HarmonyInstance harmony = HarmonyInstance.Create("rimworld.why_is_that.NoFirewatcher.DisableWeatherChange");
-            harmony.Patch(AccessTools.Method(typeof(WeatherDecider), nameof(WeatherDecider.StartNextWeather)), new HarmonyMethod(typeof(HarmonyPatches), nameof(Prefix)), null);
+            harmony.Patch(AccessTools.Method(typeof(WeatherDecider), nameof(WeatherDecider.StartNextWeather)), new HarmonyMethod(typeof(FirewatcerPatches), nameof(Prefix)), null);
         }
 
         public static bool Prefix() { return false;  }
