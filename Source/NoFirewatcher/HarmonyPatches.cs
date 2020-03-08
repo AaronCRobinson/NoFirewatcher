@@ -2,7 +2,7 @@
 using System.Reflection.Emit;
 using Verse;
 using RimWorld;
-using Harmony;
+using HarmonyLib;
 using System.Linq;
 using System;
 using static NoFirewatcher.HarmonyTools;
@@ -17,7 +17,7 @@ namespace NoFirewatcher
 #if DEBUG
             HarmonyInstance.DEBUG = true;
 #endif
-            HarmonyInstance harmony = HarmonyInstance.Create("rimworld.whyisthat.nofirewatcher.main");
+            Harmony harmony = new Harmony("rimworld.whyisthat.nofirewatcher.main");
 
             switch (NoFirewatcherMod.settings.chieftainness)
             {
