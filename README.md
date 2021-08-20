@@ -1,4 +1,4 @@
-# NoFireWatcher [![RimWorld 1.1](https://img.shields.io/badge/RimWorld-1.1-green.svg?longCache=true&style=plastic)](http://rimworldgame.com/)
+# NoFireWatcher [![RimWorld 1.3](https://img.shields.io/badge/RimWorld-1.3-green.svg?longCache=true&style=plastic)](http://rimworldgame.com/)
 
 Disabled FireWatcher which changes likelihood of rain when fires get to large.
 
