@@ -5,3 +5,4 @@ SET "RWModsDir=D:\SteamLibrary\steamapps\common\RimWorld\Mods"
 @echo on
 
 xcopy /S /Y "%SolutionDir%\..\About\*" "%RWModsDir%\%ProjectName%\About\"
+xcopy /S /Y "%SolutionDir%\..\Assemblies\*" "%RWModsDir%\%ProjectName%\Assemblies\"
