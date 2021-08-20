@@ -1,9 +1,6 @@
 ﻿using UnityEngine;
 using Verse;
-using RimWorld;
 using SettingsHelper;
-using System;
-using System.Collections.Generic;
 
 namespace NoFirewatcher
 {
